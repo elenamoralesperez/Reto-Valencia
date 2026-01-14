@@ -1,0 +1,51 @@
+name: valencia
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  collector:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_NAME: postgres
+      DB_USER: postgres
+      DB_PASS: postgres
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: valenbisi_grafana
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    restart: always
+
+  dbt:
+    build: ./transformation
+    depends_on:
+      - db
+    environment:
+      DBT_PROFILES_DIR: /root/.dbt
+    command: >
+      bash -c "
+      dbt debug &&
+      dbt run
+      "
+
+volumes:
+  postgres_data:
